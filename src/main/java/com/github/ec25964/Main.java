@@ -9,15 +9,22 @@ import com.github.ec25964.service.AuditService;
 import com.github.ec25964.service.DigitalIdService;
 import com.github.ec25964.service.OrganisationRegistry;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Scanner;
 
 public class Main {
 
-    private static final Path IDS_FILE = Path.of("data", "ids.csv");
-    private static final Path AUDIT_FILE = Path.of("data", "audit.csv");
+    private static final Path DATA_DIR = Path.of("data");
+    private static final Path SAMPLE_DIR = Path.of("sample-data");
+    private static final Path IDS_FILE = DATA_DIR.resolve("ids.csv");
+    private static final Path AUDIT_FILE = DATA_DIR.resolve("audit.csv");
 
     public static void main(String[] args) {
+        seedDataDirectoryIfEmpty();
+
         CsvParser parser = new CsvParser();
         CsvWriter writer = new CsvWriter();
 
@@ -33,5 +40,22 @@ public class Main {
                     digitalIdService, auditService, registry, scanner, System.out);
             controller.start();
         }
+    }
+
+    private static void seedDataDirectoryIfEmpty() {
+        try {
+            Files.createDirectories(DATA_DIR);
+            seedFileIfMissing(SAMPLE_DIR.resolve("ids.csv"), IDS_FILE);
+            seedFileIfMissing(SAMPLE_DIR.resolve("audit.csv"), AUDIT_FILE);
+        } catch (IOException e) {
+            System.err.println("Warning: could not seed data directory: " + e.getMessage());
+        }
+    }
+
+    private static void seedFileIfMissing(Path source, Path target) throws IOException {
+        if (Files.exists(target) || !Files.exists(source)) {
+            return;
+        }
+        Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
     }
 }
