@@ -103,4 +103,72 @@ class CsvParserWriterTest {
         assertEquals(1, parsed.size());
         assertArrayEquals(new String[]{"x", "", ""}, parsed.get(0));
     }
+
+    @Test
+    void fieldContainingCommaIsRoundTripped() {
+        Path file = tempDir.resolve("test.csv");
+        String[] header = {"name", "address"};
+        List<String[]> data = List.<String[]>of(
+            new String[]{"Chaewon Kim", "Hybe Office, Seoul"}
+    );
+
+
+        writer.write(file, data, header);
+        List<String[]> parsed = parser.parse(file);
+
+        assertEquals(1, parsed.size());
+        assertArrayEquals(new String[]{"Chaewon Kim", "Hybe Office, Seoul"},
+                parsed.get(0));
+    }
+
+    @Test
+    void fieldContainingDoubleQuoteIsRoundTripped() {
+        Path file = tempDir.resolve("test.csv");
+        String[] header = {"alias"};
+        List<String[]> data = List.<String[]>of(
+            new String[]{"They call me \"the boss\""}
+        );
+        writer.write(file, data, header);
+        List<String[]> parsed = parser.parse(file);
+
+        assertEquals(1, parsed.size());
+        assertArrayEquals(
+                new String[]{"They call me \"the boss\""},
+                parsed.get(0));
+    }
+
+    @Test
+    void fieldContainingBothCommaAndQuoteIsRoundTripped() {
+        Path file = tempDir.resolve("test.csv");
+        String[] header = {"note"};
+        List<String[]> data = List.<String[]>of(
+            new String[]{"He said \"hello, world\" loudly"}
+        );
+
+        writer.write(file, data, header);
+        List<String[]> parsed = parser.parse(file);
+
+        assertEquals(1, parsed.size());
+        assertArrayEquals(
+                new String[]{"He said \"hello, world\" loudly"},
+                parsed.get(0));
+    }
+
+    @Test
+    void appendedRowWithCommaSurvivesRoundTrip() {
+        Path file = tempDir.resolve("audit.csv");
+        String[] header = {"event", "details"};
+
+        writer.appendRow(file,
+                new String[]{"STATUS_CHANGE",
+                        "ACTIVE -> SUSPENDED | Reason: Fraud, witness pending"},
+                header);
+
+        List<String[]> parsed = parser.parse(file);
+        assertEquals(1, parsed.size());
+        assertEquals(
+                "ACTIVE -> SUSPENDED | Reason: Fraud, witness pending",
+                parsed.get(0)[1]);
+    }
+
 }

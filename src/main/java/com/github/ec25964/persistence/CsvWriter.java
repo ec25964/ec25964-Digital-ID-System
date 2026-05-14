@@ -11,10 +11,9 @@ public class CsvWriter {
 
     public void write(Path filePath, List<String[]> rows, String[] header) {
         List<String> lines = new ArrayList<>();
-        lines.add(String.join(",", header));
-
+        lines.add(formatRow(header));
         for (String[] row : rows) {
-            lines.add(String.join(",", row));
+            lines.add(formatRow(row));
         }
 
         try {
@@ -30,13 +29,35 @@ public class CsvWriter {
             Files.createDirectories(filePath.getParent());
 
             if (!Files.exists(filePath)) {
-                Files.write(filePath, List.of(String.join(",", header)));
+                Files.write(filePath, List.of(formatRow(header)));
             }
 
-            String line = String.join(",", row);
-            Files.write(filePath, List.of(line), StandardOpenOption.APPEND);
+            Files.write(filePath, List.of(formatRow(row)), StandardOpenOption.APPEND);
         } catch (IOException e) {
             throw new RuntimeException("Failed to append to CSV file: " + filePath, e);
         }
+    }
+
+    private String formatRow(String[] row) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < row.length; i++) {
+            if (i > 0) {
+                sb.append(',');
+            }
+            sb.append(escapeField(row[i]));
+        }
+        return sb.toString();
+    }
+
+    private String escapeField(String field) {
+        if (field == null) {
+            return "";
+        }
+        boolean needsQuoting =
+                field.contains(",") || field.contains("\"") || field.contains("\n");
+        if (!needsQuoting) {
+            return field;
+        }
+        return "\"" + field.replace("\"", "\"\"") + "\"";
     }
 }
