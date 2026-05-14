@@ -407,6 +407,41 @@ class DigitalIdServiceTest {
         assertEquals("TaxAuthority", verifyEntry.getOrganisation());
     }
 
+    @Test
+    void updateAttributeOnRevokedIdIsRejected() {
+        DigitalId created = service.create(centralAuthority, validAttributes());
+        service.changeStatus(centralAuthority, created.getId(),
+                IdStatus.REVOKED, "Confirmed fraud");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> service.updateAttribute(centralAuthority, created.getId(),
+                        "firstName", "Jane"));
+        assertTrue(ex.getMessage().toLowerCase().contains("revoked"));
+    }
+
+    @Test
+    void updateAttributeOnSuspendedIdStillSucceeds() {
+        DigitalId created = service.create(centralAuthority, validAttributes());
+        service.changeStatus(centralAuthority, created.getId(),
+                IdStatus.SUSPENDED, "Fraud investigation");
+
+        DigitalId updated = service.updateAttribute(centralAuthority,
+                created.getId(), "email", "new@example.com");
+
+        assertEquals("new@example.com", updated.getEmail());
+    }
+
+    @Test
+    void updateAttributeOnActiveIdStillSucceeds() {
+        DigitalId created = service.create(centralAuthority, validAttributes());
+
+        DigitalId updated = service.updateAttribute(centralAuthority,
+                created.getId(), "firstName", "Jane");
+
+        assertEquals("Jane", updated.getFirstName());
+    }
+
+
 
 
 }
