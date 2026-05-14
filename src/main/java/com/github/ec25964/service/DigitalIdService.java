@@ -91,6 +91,11 @@ public class DigitalIdService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Digital ID not found: " + digitalIdId));
 
+        if (digitalId.getStatus() == IdStatus.REVOKED) {
+            throw new IllegalArgumentException(
+                    "Cannot update attributes of a REVOKED Digital ID");
+        }
+
         if (newValue == null || newValue.isBlank()) {
             throw new IllegalArgumentException(
                     "New value for " + attributeName + " must not be blank");
