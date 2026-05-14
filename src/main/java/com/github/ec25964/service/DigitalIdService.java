@@ -58,6 +58,9 @@ public class DigitalIdService {
                 "If called from a UI layer, convert before calling.");
         }
 
+        validateDateOfBirthNotInFuture(dateOfBirth);
+        validateEmailFormat(attributes.get("email"));
+
         DigitalId digitalId = DigitalId.create(
                 attributes.get("firstName"),
                 attributes.get("lastName"),
@@ -139,6 +142,7 @@ public class DigitalIdService {
                 yield old;
             }
             case "email" -> {
+                validateEmailFormat(newValue);
                 String old = digitalId.getEmail();
                 digitalId.setEmail(newValue);
                 yield old;
@@ -232,6 +236,26 @@ public class DigitalIdService {
         return new VerificationResult(digitalId.getId(), digitalId.getStatus(), attributes);
     }
 
+    private void validateEmailFormat(String email) {
+        if (email == null) {
+            throw new IllegalArgumentException("Email must not be null");
+        }
+        int at = email.indexOf('@');
+        if (at <= 0 || at != email.lastIndexOf('@')) {
+            throw new IllegalArgumentException(
+                    "Invalid email '" + email + "': must contain a single '@'");
+        }
+        String domain = email.substring(at + 1);
+        if (!domain.contains(".") || domain.startsWith(".") || domain.endsWith(".")) {
+            throw new IllegalArgumentException(
+                    "Invalid email '" + email + "': domain must contain a '.'");
+        }
+    }
 
-
+    private void validateDateOfBirthNotInFuture(LocalDate dateOfBirth) {
+        if (dateOfBirth.isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException(
+                    "Invalid dateOfBirth: must not be in the future");
+        }
+    }
 }

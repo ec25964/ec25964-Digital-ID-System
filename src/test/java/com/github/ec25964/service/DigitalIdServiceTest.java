@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -347,8 +348,6 @@ class DigitalIdServiceTest {
     @Test
     void verifyByConsumingOrgReturnsOnlyPermittedAttributes() {
         DigitalId created = service.create(centralAuthority, validAttributes());
-
-        // TaxAuthority (set up in setUp) can access: id, firstName, lastName, address, nationality
         VerificationResult result = service.verify(consumingOrg, created.getId());
 
         assertTrue(result.getAttributes().containsKey("firstName"));
@@ -362,8 +361,6 @@ class DigitalIdServiceTest {
     @Test
     void verifyAlwaysIncludesStatus() {
         DigitalId created = service.create(centralAuthority, validAttributes());
-
-        // Minimal org has access to only "id" — but status is always returned
         Organisation minimalOrg = new Organisation("MinimalOrg",
                 OrganisationType.CONSUMING_ORGANISATION, Set.of("id"));
 
@@ -441,7 +438,62 @@ class DigitalIdServiceTest {
         assertEquals("Jane", updated.getFirstName());
     }
 
+    @Test
+    void createRejectsEmailWithoutAtSign() {
+        Map<String, String> attrs = validAttributes();
+        attrs.put("email", "no-at-sign.com");
 
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> service.create(centralAuthority, attrs));
+        assertTrue(ex.getMessage().toLowerCase().contains("email"));
+    }
 
+    @Test
+    void createRejectsEmailWithoutDomainDot() {
+        Map<String, String> attrs = validAttributes();
+        attrs.put("email", "user@nodomain");
 
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> service.create(centralAuthority, attrs));
+        assertTrue(ex.getMessage().toLowerCase().contains("email"));
+    }
+
+    @Test
+    void createRejectsEmailWithMultipleAtSigns() {
+        Map<String, String> attrs = validAttributes();
+        attrs.put("email", "user@host@example.com");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> service.create(centralAuthority, attrs));
+        assertTrue(ex.getMessage().toLowerCase().contains("email"));
+    }
+
+    @Test
+    void createRejectsFutureDateOfBirth() {
+        Map<String, String> attrs = validAttributes();
+        attrs.put("dateOfBirth", LocalDate.now().plusDays(1).toString());
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> service.create(centralAuthority, attrs));
+        assertTrue(ex.getMessage().toLowerCase().contains("future"));
+    }
+
+    @Test
+    void createAcceptsTodaysDateOfBirth() {
+        Map<String, String> attrs = validAttributes();
+        attrs.put("dateOfBirth", LocalDate.now().toString());
+
+        DigitalId result = service.create(centralAuthority, attrs);
+        assertEquals(LocalDate.now(), result.getDateOfBirth());
+    }
+
+    @Test
+    void updateAttributeRejectsInvalidEmail() {
+        DigitalId created = service.create(centralAuthority, validAttributes());
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> service.updateAttribute(centralAuthority, created.getId(),
+                        "email", "not-valid"));
+        assertTrue(ex.getMessage().toLowerCase().contains("email"));
+    }
 }
