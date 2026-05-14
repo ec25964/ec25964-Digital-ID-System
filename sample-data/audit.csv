@@ -1,2 +1,13 @@
 eventType,digitalIdId,organisation,timestamp,details
 CREATION,d7da9b71-8737-4fde-890a-765e3c0f8567,CentralAuthority,2026-05-14T17:09:33.523435,Created new Digital ID
+VERIFICATION,d7da9b71-8737-4fde-890a-765e3c0f8567,CentralAuthority,2026-05-14T17:59:56.375691,Verified by CentralAuthority
+VERIFICATION,d7da9b71-8737-4fde-890a-765e3c0f8567,CentralAuthority,2026-05-14T19:22:03.752875,Verified by CentralAuthority
+VERIFICATION,d7da9b71-8737-4fde-890a-765e3c0f8567,TaxAuthority,2026-05-14T19:25:52.734847,Verified by TaxAuthority
+CREATION,696fe888-eae5-4387-a152-b6a5956c7e6c,CentralAuthority,2026-05-14T19:27:04.463550,Created new Digital ID
+CREATION,8f543ab9-70af-4a42-bc28-5bc2e1e7cd08,CentralAuthority,2026-05-14T19:27:58.419703,Created new Digital ID
+UPDATE,8f543ab9-70af-4a42-bc28-5bc2e1e7cd08,CentralAuthority,2026-05-14T19:28:49.973720,email: miywakisakura@gmail.com -> miyawakisakura@gmail.com
+CREATION,fa6436df-94c6-40bf-bd22-4441a86946fb,CentralAuthority,2026-05-14T19:29:40.583119,Created new Digital ID
+CREATION,9571bbc5-42c3-482a-bff8-466059275988,CentralAuthority,2026-05-14T19:30:44.012874,Created new Digital ID
+CREATION,28b06588-1a08-45a5-8223-d481bf29029c,CentralAuthority,2026-05-14T19:32:10.865037,Created new Digital ID
+STATUS_CHANGE,28b06588-1a08-45a5-8223-d481bf29029c,CentralAuthority,2026-05-14T19:32:58.269614,ACTIVE -> REVOKED | Reason: Confirmed identify fraud
+VERIFICATION,28b06588-1a08-45a5-8223-d481bf29029c,CentralAuthority,2026-05-14T19:34:03.748820,Verified by CentralAuthority
