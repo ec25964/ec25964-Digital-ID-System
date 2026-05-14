@@ -40,3 +40,6 @@ build/
 
 ### Kiro ###
 .kiro/
+
+### Generated runtime data ###
+data/
