@@ -1,17 +1,37 @@
 package com.github.ec25964;
 
-//TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
-// click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
-public class Main {
-    public static void main(String[] args) {
-        //TIP Press <shortcut actionId="ShowIntentionActions"/> with your caret at the highlighted text
-        // to see how IntelliJ IDEA suggests fixing it.
-        System.out.printf("Hello and welcome!");
+import com.github.ec25964.cli.CliController;
+import com.github.ec25964.persistence.AuditRepository;
+import com.github.ec25964.persistence.CsvParser;
+import com.github.ec25964.persistence.CsvWriter;
+import com.github.ec25964.persistence.DigitalIdRepository;
+import com.github.ec25964.service.AuditService;
+import com.github.ec25964.service.DigitalIdService;
+import com.github.ec25964.service.OrganisationRegistry;
 
-        for (int i = 1; i <= 5; i++) {
-            //TIP Press <shortcut actionId="Debug"/> to start debugging your code. We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-            // for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.
-            System.out.println("i = " + i);
+import java.nio.file.Path;
+import java.util.Scanner;
+
+public class Main {
+
+    private static final Path IDS_FILE = Path.of("data", "ids.csv");
+    private static final Path AUDIT_FILE = Path.of("data", "audit.csv");
+
+    public static void main(String[] args) {
+        CsvParser parser = new CsvParser();
+        CsvWriter writer = new CsvWriter();
+
+        DigitalIdRepository idRepo = new DigitalIdRepository(IDS_FILE, parser, writer);
+        AuditRepository auditRepo = new AuditRepository(AUDIT_FILE, parser, writer);
+
+        AuditService auditService = new AuditService(auditRepo);
+        DigitalIdService digitalIdService = new DigitalIdService(idRepo, auditService);
+        OrganisationRegistry registry = new OrganisationRegistry();
+
+        try (Scanner scanner = new Scanner(System.in)) {
+            CliController controller = new CliController(
+                    digitalIdService, auditService, registry, scanner, System.out);
+            controller.start();
         }
     }
 }
