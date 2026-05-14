@@ -1,2 +1,7 @@
 id,firstName,lastName,dateOfBirth,address,nationality,email,status
 d7da9b71-8737-4fde-890a-765e3c0f8567,Chaewon,Kim,2000-08-01,"Hybe Office, Seoul",Korean,kimchaewon@gmail.com,ACTIVE
+696fe888-eae5-4387-a152-b6a5956c7e6c,Yunjin,Huh,2001-10-08,"Hybe Office, Seoul",Korean,huhyunjin@gmail.com,ACTIVE
+8f543ab9-70af-4a42-bc28-5bc2e1e7cd08,Sakura,Miyawaki,1998-03-19,"Hybe Office, Seoul",Japanese,miyawakisakura@gmail.com,ACTIVE
+fa6436df-94c6-40bf-bd22-4441a86946fb,Eunchae,Hong,2006-11-10,"Hybe Office, Seoul",Korean,hongeunchae@gmail.com,ACTIVE
+9571bbc5-42c3-482a-bff8-466059275988,Kazuha,Nakamura,2003-08-09,"Hybe Office, Seoul",Japanese,nakamurakazuha@gmail.com,ACTIVE
+28b06588-1a08-45a5-8223-d481bf29029c,Garam,Kim,2005-11-16,"Hybe Office, Seoul",Korean,kimgaram@gmail.com,REVOKED
