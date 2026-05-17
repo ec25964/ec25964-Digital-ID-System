@@ -130,6 +130,7 @@ public class CliController {
         attrs.put("email", prompt("Email: "));
 
         DigitalId created = digitalIdService.create(org, attrs);
+        out.println();
         out.println("Created Digital ID: " + created.getId());
     }
 
@@ -140,6 +141,7 @@ public class CliController {
         String value = prompt("New value: ");
 
         digitalIdService.updateAttribute(org, id, attribute, value);
+        out.println();
         out.println("Updated " + attribute + " on " + id);
     }
 
@@ -161,6 +163,7 @@ public class CliController {
         }
 
         digitalIdService.changeStatus(org, id, newStatus, reason);
+        out.println();
         out.println("Status of " + id + " is now " + newStatus);
     }
 
@@ -168,25 +171,28 @@ public class CliController {
         String id = prompt("Digital ID: ");
         VerificationResult result = digitalIdService.verify(org, id);
 
-        out.println("Digital ID: " + result.getDigitalIdId());
-        out.println("Status: " + result.getStatus());
+        out.println();
+        out.println("Verification of " + result.getDigitalIdId());
+        out.println("  Status: " + result.getStatus());
         if (result.getAttributes().isEmpty()) {
-            out.println("(No additional attributes accessible to " + org.getName() + ")");
+            out.println("  (No additional attributes accessible to " + org.getName() + ")");
         } else {
-            out.println("Attributes:");
+            out.println("  Attributes:");
             result.getAttributes().forEach((key, value) ->
-                    out.println("  " + key + ": " + formatValueForDisplay(key, value)));
+                    out.println("    " + key + ": " + formatValueForDisplay(key, value)));
         }
     }
 
     private void handleViewAuditLogs(Organisation org) {
         List<AuditEntry> entries = auditService.getAllEntries(org);
+        out.println();
         printAuditEntries(entries);
     }
 
     private void handleViewAuditLogsByDigitalId(Organisation org) {
         String id = prompt("Digital ID: ");
         List<AuditEntry> entries = auditService.getEntriesByDigitalId(org, id);
+        out.println();
         printAuditEntries(entries);
     }
 
@@ -196,6 +202,7 @@ public class CliController {
         LocalDate end = parseUiDate(prompt("End date (dd/MM/yyyy): "));
 
         List<AuditEntry> entries = auditService.getStatusHistory(org, id, start, end);
+        out.println();
         if (entries.isEmpty()) {
             out.println("No status changes found for " + id +
                     " between " + start.format(UI_DATE_FORMAT) +
