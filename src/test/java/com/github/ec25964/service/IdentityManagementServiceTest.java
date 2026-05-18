@@ -10,8 +10,6 @@ import com.github.ec25964.model.DigitalId;
 import com.github.ec25964.model.IdStatus;
 import com.github.ec25964.model.Organisation;
 import com.github.ec25964.model.OrganisationType;
-import com.github.ec25964.model.PeriodVerificationResult;
-import com.github.ec25964.model.VerificationResult;
 import com.github.ec25964.persistence.AuditRepository;
 import com.github.ec25964.persistence.CsvParser;
 import com.github.ec25964.persistence.CsvWriter;
@@ -30,17 +28,16 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class DigitalIdServiceTest {
+class IdentityManagementServiceTest {
 
     @TempDir
     Path tempDir;
 
-    private DigitalIdService service;
+    private IdentityManagementService service;
     private DigitalIdRepository idRepo;
     private AuditRepository auditRepo;
     private Organisation centralAuthority;
     private Organisation consumingOrg;
-    private Organisation periodVerifyingOrg;
 
     @BeforeEach
     void setUp() {
@@ -51,22 +48,18 @@ class DigitalIdServiceTest {
         auditRepo = new AuditRepository(tempDir.resolve("audit.csv"), parser, writer);
 
         AuditService auditService = new AuditService(auditRepo);
-        service = new DigitalIdService(idRepo, auditService, auditRepo);
+        service = new IdentityManagementService(idRepo, auditService);
 
         centralAuthority = new Organisation("CentralAuthority",
                 OrganisationType.CENTRAL_AUTHORITY,
                 Set.of("id", "firstName", "lastName", "dateOfBirth",
                         "address", "nationality", "email", "status"),
-                        true);
+                true);
         consumingOrg = new Organisation("Bank",
                 OrganisationType.CONSUMING_ORGANISATION,
                 Set.of("id", "firstName", "lastName", "dateOfBirth"),
                 false);
-        periodVerifyingOrg = new Organisation("TaxAuthority",
-            OrganisationType.CONSUMING_ORGANISATION,
-            Set.of("id", "firstName", "lastName", "address", "nationality"),
-            true);
-        }
+    }
 
     private Map<String, String> validAttributes() {
         Map<String, String> attrs = new HashMap<>();
@@ -78,6 +71,8 @@ class DigitalIdServiceTest {
         attrs.put("email", "john@example.com");
         return attrs;
     }
+
+    // ---------- create ----------
 
     @Test
     void createByCentralAuthorityReturnsActiveDigitalIdWithGeneratedId() {
@@ -150,7 +145,59 @@ class DigitalIdServiceTest {
                 () -> service.create(centralAuthority, attrs));
         assertTrue(ex.getMessage().toLowerCase().contains("dateofbirth"));
     }
-        @Test
+
+    @Test
+    void createRejectsEmailWithoutAtSign() {
+        Map<String, String> attrs = validAttributes();
+        attrs.put("email", "no-at-sign.com");
+
+        ValidationException ex = assertThrows(ValidationException.class,
+                () -> service.create(centralAuthority, attrs));
+        assertTrue(ex.getMessage().toLowerCase().contains("email"));
+    }
+
+    @Test
+    void createRejectsEmailWithoutDomainDot() {
+        Map<String, String> attrs = validAttributes();
+        attrs.put("email", "user@nodomain");
+
+        ValidationException ex = assertThrows(ValidationException.class,
+                () -> service.create(centralAuthority, attrs));
+        assertTrue(ex.getMessage().toLowerCase().contains("email"));
+    }
+
+    @Test
+    void createRejectsEmailWithMultipleAtSigns() {
+        Map<String, String> attrs = validAttributes();
+        attrs.put("email", "user@host@example.com");
+
+        ValidationException ex = assertThrows(ValidationException.class,
+                () -> service.create(centralAuthority, attrs));
+        assertTrue(ex.getMessage().toLowerCase().contains("email"));
+    }
+
+    @Test
+    void createRejectsFutureDateOfBirth() {
+        Map<String, String> attrs = validAttributes();
+        attrs.put("dateOfBirth", LocalDate.now().plusDays(1).toString());
+
+        ValidationException ex = assertThrows(ValidationException.class,
+                () -> service.create(centralAuthority, attrs));
+        assertTrue(ex.getMessage().toLowerCase().contains("future"));
+    }
+
+    @Test
+    void createAcceptsTodaysDateOfBirth() {
+        Map<String, String> attrs = validAttributes();
+        attrs.put("dateOfBirth", LocalDate.now().toString());
+
+        DigitalId result = service.create(centralAuthority, attrs);
+        assertEquals(LocalDate.now(), result.getDateOfBirth());
+    }
+
+    // ---------- updateAttribute ----------
+
+    @Test
     void updateAttributeChangesValueAndPersists() {
         DigitalId created = service.create(centralAuthority, validAttributes());
 
@@ -233,7 +280,53 @@ class DigitalIdServiceTest {
                         "firstName", "   "));
     }
 
-        @Test
+    @Test
+    void updateAttributeOnRevokedIdIsRejected() {
+        DigitalId created = service.create(centralAuthority, validAttributes());
+        service.changeStatus(centralAuthority, created.getId(),
+                IdStatus.REVOKED, "Confirmed fraud");
+
+        IllegalTransitionException ex = assertThrows(IllegalTransitionException.class,
+                () -> service.updateAttribute(centralAuthority, created.getId(),
+                        "firstName", "Jane"));
+        assertTrue(ex.getMessage().toLowerCase().contains("revoked"));
+    }
+
+    @Test
+    void updateAttributeOnSuspendedIdStillSucceeds() {
+        DigitalId created = service.create(centralAuthority, validAttributes());
+        service.changeStatus(centralAuthority, created.getId(),
+                IdStatus.SUSPENDED, "Fraud investigation");
+
+        DigitalId updated = service.updateAttribute(centralAuthority,
+                created.getId(), "email", "new@example.com");
+
+        assertEquals("new@example.com", updated.getEmail());
+    }
+
+    @Test
+    void updateAttributeOnActiveIdStillSucceeds() {
+        DigitalId created = service.create(centralAuthority, validAttributes());
+
+        DigitalId updated = service.updateAttribute(centralAuthority,
+                created.getId(), "firstName", "Jane");
+
+        assertEquals("Jane", updated.getFirstName());
+    }
+
+    @Test
+    void updateAttributeRejectsInvalidEmail() {
+        DigitalId created = service.create(centralAuthority, validAttributes());
+
+        ValidationException ex = assertThrows(ValidationException.class,
+                () -> service.updateAttribute(centralAuthority, created.getId(),
+                        "email", "not-valid"));
+        assertTrue(ex.getMessage().toLowerCase().contains("email"));
+    }
+
+    // ---------- changeStatus ----------
+
+    @Test
     void changeStatusFromActiveToSuspendedWithReasonSucceeds() {
         DigitalId created = service.create(centralAuthority, validAttributes());
 
@@ -340,239 +433,4 @@ class DigitalIdServiceTest {
         assertTrue(reactivation.getDetails().contains("ACTIVE"));
         assertFalse(reactivation.getDetails().toLowerCase().contains("reason"));
     }
-
-        @Test
-    void verifyByCentralAuthorityReturnsAllAttributes() {
-        DigitalId created = service.create(centralAuthority, validAttributes());
-
-        VerificationResult result = service.verify(centralAuthority, created.getId());
-
-        assertEquals(created.getId(), result.getDigitalIdId());
-        assertEquals(IdStatus.ACTIVE, result.getStatus());
-        assertEquals("John", result.getAttributes().get("firstName"));
-        assertEquals("Doe", result.getAttributes().get("lastName"));
-        assertEquals("1990-05-15", result.getAttributes().get("dateOfBirth"));
-        assertEquals("123 Main St", result.getAttributes().get("address"));
-        assertEquals("British", result.getAttributes().get("nationality"));
-        assertEquals("john@example.com", result.getAttributes().get("email"));
-    }
-
-    @Test
-    void verifyByConsumingOrgReturnsOnlyPermittedAttributes() {
-        DigitalId created = service.create(centralAuthority, validAttributes());
-        VerificationResult result = service.verify(consumingOrg, created.getId());
-
-        assertTrue(result.getAttributes().containsKey("firstName"));
-        assertTrue(result.getAttributes().containsKey("lastName"));
-        assertTrue(result.getAttributes().containsKey("dateOfBirth"));
-        assertFalse(result.getAttributes().containsKey("address"));
-        assertFalse(result.getAttributes().containsKey("nationality"));
-        assertFalse(result.getAttributes().containsKey("email"));
-    }
-
-
-    @Test
-    void verifyAlwaysIncludesStatus() {
-        DigitalId created = service.create(centralAuthority, validAttributes());
-        Organisation minimalOrg = new Organisation("MinimalOrg",
-                OrganisationType.CONSUMING_ORGANISATION, Set.of("id"), false);
-
-        VerificationResult result = service.verify(minimalOrg, created.getId());
-
-        assertEquals(IdStatus.ACTIVE, result.getStatus());
-        assertEquals(created.getId(), result.getDigitalIdId());
-        assertTrue(result.getAttributes().isEmpty());
-    }
-
-    @Test
-    void verifyReflectsCurrentStatus() {
-        DigitalId created = service.create(centralAuthority, validAttributes());
-        service.changeStatus(centralAuthority, created.getId(),
-                IdStatus.SUSPENDED, "Test");
-
-        VerificationResult result = service.verify(consumingOrg, created.getId());
-
-        assertEquals(IdStatus.SUSPENDED, result.getStatus());
-    }
-
-    @Test
-    void verifyRejectsNonExistentId() {
-        NotFoundException ex = assertThrows(NotFoundException.class,
-                () -> service.verify(consumingOrg, "does-not-exist"));
-        assertTrue(ex.getMessage().toLowerCase().contains("not found"));
-    }
-
-    @Test
-    void verifyLogsAuditEvent() {
-        DigitalId created = service.create(centralAuthority, validAttributes());
-
-        service.verify(consumingOrg, created.getId());
-
-        AuditEntry verifyEntry = auditRepo.loadAll().stream()
-                .filter(e -> e.getEventType() == AuditEventType.VERIFICATION)
-                .findFirst()
-                .orElseThrow();
-
-        assertEquals(created.getId(), verifyEntry.getDigitalIdId());
-        assertEquals("Bank", verifyEntry.getOrganisation());
-    }
-
-    @Test
-    void updateAttributeOnRevokedIdIsRejected() {
-        DigitalId created = service.create(centralAuthority, validAttributes());
-        service.changeStatus(centralAuthority, created.getId(),
-                IdStatus.REVOKED, "Confirmed fraud");
-
-        IllegalTransitionException ex = assertThrows(IllegalTransitionException.class,
-                () -> service.updateAttribute(centralAuthority, created.getId(),
-                        "firstName", "Jane"));
-        assertTrue(ex.getMessage().toLowerCase().contains("revoked"));
-    }
-
-    @Test
-    void updateAttributeOnSuspendedIdStillSucceeds() {
-        DigitalId created = service.create(centralAuthority, validAttributes());
-        service.changeStatus(centralAuthority, created.getId(),
-                IdStatus.SUSPENDED, "Fraud investigation");
-
-        DigitalId updated = service.updateAttribute(centralAuthority,
-                created.getId(), "email", "new@example.com");
-
-        assertEquals("new@example.com", updated.getEmail());
-    }
-
-    @Test
-    void updateAttributeOnActiveIdStillSucceeds() {
-        DigitalId created = service.create(centralAuthority, validAttributes());
-
-        DigitalId updated = service.updateAttribute(centralAuthority,
-                created.getId(), "firstName", "Jane");
-
-        assertEquals("Jane", updated.getFirstName());
-    }
-
-    @Test
-    void createRejectsEmailWithoutAtSign() {
-        Map<String, String> attrs = validAttributes();
-        attrs.put("email", "no-at-sign.com");
-
-        ValidationException ex = assertThrows(ValidationException.class,
-                () -> service.create(centralAuthority, attrs));
-        assertTrue(ex.getMessage().toLowerCase().contains("email"));
-    }
-
-    @Test
-    void createRejectsEmailWithoutDomainDot() {
-        Map<String, String> attrs = validAttributes();
-        attrs.put("email", "user@nodomain");
-
-        ValidationException ex = assertThrows(ValidationException.class,
-                () -> service.create(centralAuthority, attrs));
-        assertTrue(ex.getMessage().toLowerCase().contains("email"));
-    }
-
-    @Test
-    void createRejectsEmailWithMultipleAtSigns() {
-        Map<String, String> attrs = validAttributes();
-        attrs.put("email", "user@host@example.com");
-
-        ValidationException ex = assertThrows(ValidationException.class,
-                () -> service.create(centralAuthority, attrs));
-        assertTrue(ex.getMessage().toLowerCase().contains("email"));
-    }
-
-    @Test
-    void createRejectsFutureDateOfBirth() {
-        Map<String, String> attrs = validAttributes();
-        attrs.put("dateOfBirth", LocalDate.now().plusDays(1).toString());
-
-        ValidationException ex = assertThrows(ValidationException.class,
-                () -> service.create(centralAuthority, attrs));
-        assertTrue(ex.getMessage().toLowerCase().contains("future"));
-    }
-
-    @Test
-    void createAcceptsTodaysDateOfBirth() {
-        Map<String, String> attrs = validAttributes();
-        attrs.put("dateOfBirth", LocalDate.now().toString());
-
-        DigitalId result = service.create(centralAuthority, attrs);
-        assertEquals(LocalDate.now(), result.getDateOfBirth());
-    }
-
-    @Test
-    void updateAttributeRejectsInvalidEmail() {
-        DigitalId created = service.create(centralAuthority, validAttributes());
-
-        ValidationException ex = assertThrows(ValidationException.class,
-                () -> service.updateAttribute(centralAuthority, created.getId(),
-                        "email", "not-valid"));
-        assertTrue(ex.getMessage().toLowerCase().contains("email"));
-    }
-
-    @Test
-    void verifyContinuousActivityReturnsTrueForUntouchedActiveId() {
-        DigitalId created = service.create(centralAuthority, validAttributes());
-
-        PeriodVerificationResult result = service.verifyContinuousActivity(
-                periodVerifyingOrg, created.getId(),
-                LocalDate.now().minusDays(7), LocalDate.now());
-
-        assertTrue(result.isContinuouslyActive());
-        assertTrue(result.getStatusEventsInPeriod().isEmpty());
-    }
-
-    @Test
-    void verifyContinuousActivityReturnsFalseWhenSuspendedDuringPeriod() {
-        DigitalId created = service.create(centralAuthority, validAttributes());
-        service.changeStatus(centralAuthority, created.getId(),
-                IdStatus.SUSPENDED, "Test");
-
-        PeriodVerificationResult result = service.verifyContinuousActivity(
-                periodVerifyingOrg, created.getId(),
-                LocalDate.now().minusDays(1), LocalDate.now().plusDays(1));
-
-        assertFalse(result.isContinuouslyActive());
-        assertEquals(1, result.getStatusEventsInPeriod().size());
-    }
-
-    @Test
-    void verifyContinuousActivityRejectsOrgWithoutPermission() {
-        DigitalId created = service.create(centralAuthority, validAttributes());
-
-        AuthorisationException ex = assertThrows(AuthorisationException.class,
-                () -> service.verifyContinuousActivity(consumingOrg, created.getId(),
-                        LocalDate.now().minusDays(7), LocalDate.now()));
-        assertTrue(ex.getMessage().toLowerCase().contains("not authorised"));
-    }
-
-    @Test
-    void verifyContinuousActivityRejectsStartAfterEnd() {
-        DigitalId created = service.create(centralAuthority, validAttributes());
-
-        assertThrows(ValidationException.class,
-                () -> service.verifyContinuousActivity(periodVerifyingOrg, created.getId(),
-                        LocalDate.of(2024, 6, 1), LocalDate.of(2024, 1, 1)));
-    }
-
-    @Test
-    void verifyContinuousActivityRejectsNonExistentId() {
-        assertThrows(NotFoundException.class,
-                () -> service.verifyContinuousActivity(periodVerifyingOrg, "no-such-id",
-                        LocalDate.now().minusDays(7), LocalDate.now()));
-    }
-
-    @Test
-    void verifyContinuousActivityLogsAuditEvent() {
-        DigitalId created = service.create(centralAuthority, validAttributes());
-
-        service.verifyContinuousActivity(periodVerifyingOrg, created.getId(),
-                LocalDate.now().minusDays(7), LocalDate.now());
-
-        boolean found = auditRepo.loadAll().stream()
-                .anyMatch(e -> e.getEventType() == AuditEventType.VERIFICATION
-                        && e.getDetails().contains("Period verification"));
-        assertTrue(found);
-    }
-
 }

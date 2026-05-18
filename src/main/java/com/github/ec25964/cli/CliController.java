@@ -8,7 +8,8 @@ import com.github.ec25964.model.Organisation;
 import com.github.ec25964.model.PeriodVerificationResult;
 import com.github.ec25964.model.VerificationResult;
 import com.github.ec25964.service.AuditService;
-import com.github.ec25964.service.DigitalIdService;
+import com.github.ec25964.service.IdentityManagementService;
+import com.github.ec25964.service.IdentityVerificationService;
 import com.github.ec25964.service.OrganisationRegistry;
 
 import java.io.PrintStream;
@@ -26,25 +27,29 @@ public class CliController {
     private static final DateTimeFormatter UI_DATE_FORMAT =
             DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    private final DigitalIdService digitalIdService;
+    private final IdentityManagementService managementService;
+    private final IdentityVerificationService verificationService;
     private final AuditService auditService;
     private final OrganisationRegistry registry;
     private final MenuRenderer renderer;
     private final Scanner in;
     private final PrintStream out;
 
-    public CliController(DigitalIdService digitalIdService,
+    public CliController(IdentityManagementService managementService,
+                         IdentityVerificationService verificationService,
                          AuditService auditService,
                          OrganisationRegistry registry,
                          Scanner in,
                          PrintStream out) {
-        this.digitalIdService = digitalIdService;
+        this.managementService = managementService;
+        this.verificationService = verificationService;
         this.auditService = auditService;
         this.registry = registry;
         this.renderer = new MenuRenderer();
         this.in = in;
         this.out = out;
     }
+
 
     public void start() {
         Organisation selected = selectOrganisation();
@@ -138,7 +143,7 @@ public class CliController {
         attrs.put("nationality", prompt("Nationality: "));
         attrs.put("email", prompt("Email: "));
 
-        DigitalId created = digitalIdService.create(org, attrs);
+        DigitalId created = managementService.create(org, attrs);
         out.println();
         out.println("Created Digital ID: " + created.getId());
     }
@@ -152,7 +157,7 @@ public class CliController {
                 "(firstName, lastName, address, nationality, email): ");
         String value = prompt("New value: ");
 
-        digitalIdService.updateAttribute(org, id, attribute, value);
+        managementService.updateAttribute(org, id, attribute, value);
         out.println();
         out.println("Updated " + attribute + " on " + id);
     }
@@ -177,14 +182,14 @@ public class CliController {
             reason = prompt("Reason: ");
         }
 
-        digitalIdService.changeStatus(org, id, newStatus, reason);
+        managementService.changeStatus(org, id, newStatus, reason);
         out.println();
         out.println("Status of " + id + " is now " + newStatus);
     }
 
     private void handleVerify(Organisation org) {
         String id = prompt("Digital ID: ");
-        VerificationResult result = digitalIdService.verify(org, id);
+        VerificationResult result = verificationService.verify(org, id);
 
         out.println();
         out.println("Verification of " + result.getDigitalIdId());
@@ -239,7 +244,7 @@ public class CliController {
         LocalDate end = parseUiDate(prompt("End date (dd/MM/yyyy): "));
 
         PeriodVerificationResult result =
-                digitalIdService.verifyContinuousActivity(org, id, start, end);
+                verificationService.verifyContinuousActivity(org, id, start, end);
 
         out.println();
         out.println("Period verification of " + result.getDigitalIdId());
@@ -326,7 +331,7 @@ public class CliController {
     }
 
     private Optional<DigitalId> preflightId(String id, boolean requireAlterable) {
-        Optional<DigitalId> existing = digitalIdService.findById(id);
+        Optional<DigitalId> existing = managementService.findById(id);
         if (existing.isEmpty()) {
             out.println();
             out.println("Error: Digital ID not found: " + id);

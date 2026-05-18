@@ -6,7 +6,8 @@ import com.github.ec25964.persistence.CsvParser;
 import com.github.ec25964.persistence.CsvWriter;
 import com.github.ec25964.persistence.DigitalIdRepository;
 import com.github.ec25964.service.AuditService;
-import com.github.ec25964.service.DigitalIdService;
+import com.github.ec25964.service.IdentityManagementService;
+import com.github.ec25964.service.IdentityVerificationService;
 import com.github.ec25964.service.OrganisationRegistry;
 
 import java.io.IOException;
@@ -32,14 +33,19 @@ public class Main {
         AuditRepository auditRepo = new AuditRepository(AUDIT_FILE, parser, writer);
 
         AuditService auditService = new AuditService(auditRepo);
-        DigitalIdService digitalIdService = new DigitalIdService(idRepo, auditService, auditRepo);
+        IdentityManagementService managementService =
+                new IdentityManagementService(idRepo, auditService);
+        IdentityVerificationService verificationService =
+                new IdentityVerificationService(idRepo, auditService, auditRepo);
         OrganisationRegistry registry = new OrganisationRegistry();
 
         try (Scanner scanner = new Scanner(System.in)) {
             CliController controller = new CliController(
-                    digitalIdService, auditService, registry, scanner, System.out);
+                    managementService, verificationService, auditService,
+                    registry, scanner, System.out);
             controller.start();
         }
+
     }
 
     private static void seedDataDirectoryIfEmpty() {
