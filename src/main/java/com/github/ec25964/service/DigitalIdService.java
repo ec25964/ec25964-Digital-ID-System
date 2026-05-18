@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 public class DigitalIdService {
@@ -343,4 +344,9 @@ public class DigitalIdService {
                     "Invalid dateOfBirth: must not be in the future");
         }
     }
+
+    public Optional<DigitalId> findById(String digitalIdId) {
+        return repository.findById(digitalIdId);
+    }
+
 }
