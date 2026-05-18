@@ -15,31 +15,40 @@ public class OrganisationRegistry {
         this.organisations = List.of(
             new Organisation("CentralAuthority", OrganisationType.CENTRAL_AUTHORITY,
                     Set.of("id", "firstName", "lastName", "dateOfBirth",
-                            "address", "nationality", "email", "status")),
+                            "address", "nationality", "email", "status"),
+                        true),
 
             new Organisation("TaxAuthority", OrganisationType.CONSUMING_ORGANISATION,
-                    Set.of("id", "firstName", "lastName", "address", "nationality")),
+                    Set.of("id", "firstName", "lastName", "address", "nationality"),
+                true),
 
             new Organisation("DrivingLicenceAuthority", OrganisationType.CONSUMING_ORGANISATION,
-                    Set.of("id", "firstName", "lastName", "dateOfBirth", "address")),
+                    Set.of("id", "firstName", "lastName", "dateOfBirth", "address"),
+                false),
 
             new Organisation("WelfareService", OrganisationType.CONSUMING_ORGANISATION,
-                    Set.of("id", "firstName", "lastName", "dateOfBirth", "address", "nationality")),
+                    Set.of("id", "firstName", "lastName", "dateOfBirth", "address", "nationality"),
+                false),
 
             new Organisation("ImmigrationService", OrganisationType.CONSUMING_ORGANISATION,
-                    Set.of("id", "firstName", "lastName", "dateOfBirth", "address", "nationality", "email")),
+                    Set.of("id", "firstName", "lastName", "dateOfBirth", "address", "nationality", "email"),
+                false),
 
             new Organisation("LocalAuthority", OrganisationType.CONSUMING_ORGANISATION,
-                    Set.of("id", "firstName", "lastName", "dateOfBirth", "address")),
+                    Set.of("id", "firstName", "lastName", "dateOfBirth", "address"),
+                false),
 
             new Organisation("Bank", OrganisationType.CONSUMING_ORGANISATION,
-                    Set.of("id", "firstName", "lastName", "dateOfBirth")),
+                    Set.of("id", "firstName", "lastName", "dateOfBirth"),
+                false),
 
             new Organisation("Employer", OrganisationType.CONSUMING_ORGANISATION,
-                    Set.of("id", "firstName", "lastName", "dateOfBirth")),
+                    Set.of("id", "firstName", "lastName", "dateOfBirth"),
+                false),
                     
             new Organisation("CommunityFoodBank", OrganisationType.CONSUMING_ORGANISATION,
-                    Set.of("id"))
+                    Set.of("id"),
+                false)
 
         );
 

@@ -4,6 +4,7 @@ import com.github.ec25964.model.AuditEntry;
 import com.github.ec25964.model.DigitalId;
 import com.github.ec25964.model.IdStatus;
 import com.github.ec25964.model.Organisation;
+import com.github.ec25964.model.PeriodVerificationResult;
 import com.github.ec25964.model.VerificationResult;
 import com.github.ec25964.service.AuditService;
 import com.github.ec25964.service.DigitalIdService;
@@ -111,10 +112,16 @@ public class CliController {
     }
 
     private void handleConsumingOrganisationCommand(Organisation org, int choice) {
-        if (choice == 1) {
-            handleVerify(org);
-        } else {
-            out.println("Unknown choice. Try again.");
+        switch (choice) {
+            case 1 -> handleVerify(org);
+            case 2 -> {
+                if (org.canVerifyAcrossPeriod()) {
+                    handlePeriodVerify(org);
+                } else {
+                    out.println("Unknown choice. Try again.");
+                }
+            }
+            default -> out.println("Unknown choice. Try again.");
         }
     }
 
@@ -211,6 +218,28 @@ public class CliController {
         }
         printAuditEntries(entries);
     }
+
+    private void handlePeriodVerify(Organisation org) {
+        String id = prompt("Digital ID: ");
+        LocalDate start = parseUiDate(prompt("Start date (dd/MM/yyyy): "));
+        LocalDate end = parseUiDate(prompt("End date (dd/MM/yyyy): "));
+
+        PeriodVerificationResult result =
+                digitalIdService.verifyContinuousActivity(org, id, start, end);
+
+        out.println();
+        out.println("Period verification of " + result.getDigitalIdId());
+        out.println("  Period: " + result.getStartDate().format(UI_DATE_FORMAT)
+                + " to " + result.getEndDate().format(UI_DATE_FORMAT));
+        out.println("  Continuously active: " + result.isContinuouslyActive());
+        if (!result.getStatusEventsInPeriod().isEmpty()) {
+            out.println("  Status changes in period:");
+            for (AuditEntry e : result.getStatusEventsInPeriod()) {
+                out.println("    " + e.getTimestamp() + " | " + e.getDetails());
+            }
+        }
+    }
+
 
     // ----- Helpers -----
 

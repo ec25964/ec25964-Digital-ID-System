@@ -20,9 +20,9 @@ class MenuRendererTest {
     void setUp() {
         renderer = new MenuRenderer();
         centralAuthority = new Organisation("CentralAuthority",
-                OrganisationType.CENTRAL_AUTHORITY, Set.of());
-        consumingOrg = new Organisation("TaxAuthority",
-                OrganisationType.CONSUMING_ORGANISATION, Set.of());
+                OrganisationType.CENTRAL_AUTHORITY, Set.of(), true);
+        consumingOrg = new Organisation("Bank",
+            OrganisationType.CONSUMING_ORGANISATION, Set.of(), false);
     }
 
     @Test
@@ -31,7 +31,7 @@ class MenuRendererTest {
                 List.of(centralAuthority, consumingOrg));
 
         assertTrue(menu.contains("CentralAuthority"));
-        assertTrue(menu.contains("TaxAuthority"));
+        assertTrue(menu.contains("Bank"));
         assertTrue(menu.contains("1)"));
         assertTrue(menu.contains("2)"));
     }
@@ -42,7 +42,7 @@ class MenuRendererTest {
                 List.of(centralAuthority, consumingOrg));
 
         assertTrue(menu.contains("CentralAuthority [Central Authority]"));
-        assertFalse(menu.contains("TaxAuthority [Central Authority]"));
+        assertFalse(menu.contains("Bank [Central Authority]"));
     }
 
     @Test

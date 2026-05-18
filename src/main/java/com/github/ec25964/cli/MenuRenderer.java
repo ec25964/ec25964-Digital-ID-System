@@ -38,6 +38,9 @@ public class MenuRenderer {
             sb.append("  0) Exit\n");
         } else {
             sb.append("  1) Verify Digital ID\n");
+            if (org.canVerifyAcrossPeriod()) {
+                sb.append("  2) Verify across period\n");
+            }
             sb.append("  0) Exit\n");
         }
 

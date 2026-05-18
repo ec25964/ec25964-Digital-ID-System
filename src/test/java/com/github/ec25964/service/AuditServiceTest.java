@@ -36,9 +36,9 @@ class AuditServiceTest {
         auditService = new AuditService(repo);
 
         centralAuthority = new Organisation("CentralAuthority",
-                OrganisationType.CENTRAL_AUTHORITY, Set.of());
-        consumingOrg = new Organisation("TaxAuthority",
-                OrganisationType.CONSUMING_ORGANISATION, Set.of());
+                OrganisationType.CENTRAL_AUTHORITY, Set.of(), true);
+        consumingOrg = new Organisation("Bank",
+            OrganisationType.CONSUMING_ORGANISATION, Set.of(), false);
     }
 
     @Test
@@ -59,7 +59,7 @@ class AuditServiceTest {
     void getAllEntriesReturnsAllForCentralAuthority() {
         auditService.log(new AuditEntry(AuditEventType.CREATION, "id-1", "CentralAuthority",
                 LocalDateTime.of(2024, 1, 15, 10, 0, 0), "Created"));
-        auditService.log(new AuditEntry(AuditEventType.VERIFICATION, "id-1", "TaxAuthority",
+        auditService.log(new AuditEntry(AuditEventType.VERIFICATION, "id-1", "Bank",
                 LocalDateTime.of(2024, 1, 16, 11, 0, 0), "Verified"));
 
         List<AuditEntry> entries = auditService.getAllEntries(centralAuthority);
@@ -79,7 +79,7 @@ class AuditServiceTest {
                 LocalDateTime.of(2024, 1, 15, 10, 0, 0), "Created id-1"));
         auditService.log(new AuditEntry(AuditEventType.CREATION, "id-2", "CentralAuthority",
                 LocalDateTime.of(2024, 1, 15, 10, 5, 0), "Created id-2"));
-        auditService.log(new AuditEntry(AuditEventType.VERIFICATION, "id-1", "TaxAuthority",
+        auditService.log(new AuditEntry(AuditEventType.VERIFICATION, "id-1", "Bank",
                 LocalDateTime.of(2024, 1, 16, 11, 0, 0), "Verified id-1"));
 
         List<AuditEntry> entries = auditService.getEntriesByDigitalId(centralAuthority, "id-1");
@@ -100,7 +100,7 @@ class AuditServiceTest {
                 LocalDateTime.of(2024, 1, 10, 10, 0, 0), "Created"));
         auditService.log(new AuditEntry(AuditEventType.STATUS_CHANGE, "id-1", "CentralAuthority",
                 LocalDateTime.of(2024, 1, 15, 10, 0, 0), "ACTIVE -> SUSPENDED | Reason: Fraud check"));
-        auditService.log(new AuditEntry(AuditEventType.VERIFICATION, "id-1", "TaxAuthority",
+        auditService.log(new AuditEntry(AuditEventType.VERIFICATION, "id-1", "Bank",
                 LocalDateTime.of(2024, 1, 16, 11, 0, 0), "Verified"));
 
         List<AuditEntry> history = auditService.getStatusHistory(

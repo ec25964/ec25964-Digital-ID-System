@@ -32,7 +32,7 @@ public class Main {
         AuditRepository auditRepo = new AuditRepository(AUDIT_FILE, parser, writer);
 
         AuditService auditService = new AuditService(auditRepo);
-        DigitalIdService digitalIdService = new DigitalIdService(idRepo, auditService);
+        DigitalIdService digitalIdService = new DigitalIdService(idRepo, auditService, auditRepo);
         OrganisationRegistry registry = new OrganisationRegistry();
 
         try (Scanner scanner = new Scanner(System.in)) {

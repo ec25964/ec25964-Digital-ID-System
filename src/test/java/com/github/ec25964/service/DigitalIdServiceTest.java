@@ -6,6 +6,7 @@ import com.github.ec25964.model.DigitalId;
 import com.github.ec25964.model.IdStatus;
 import com.github.ec25964.model.Organisation;
 import com.github.ec25964.model.OrganisationType;
+import com.github.ec25964.model.PeriodVerificationResult;
 import com.github.ec25964.model.VerificationResult;
 import com.github.ec25964.persistence.AuditRepository;
 import com.github.ec25964.persistence.CsvParser;
@@ -35,6 +36,7 @@ class DigitalIdServiceTest {
     private AuditRepository auditRepo;
     private Organisation centralAuthority;
     private Organisation consumingOrg;
+    private Organisation periodVerifyingOrg;
 
     @BeforeEach
     void setUp() {
@@ -45,16 +47,22 @@ class DigitalIdServiceTest {
         auditRepo = new AuditRepository(tempDir.resolve("audit.csv"), parser, writer);
 
         AuditService auditService = new AuditService(auditRepo);
-        service = new DigitalIdService(idRepo, auditService);
+        service = new DigitalIdService(idRepo, auditService, auditRepo);
 
         centralAuthority = new Organisation("CentralAuthority",
                 OrganisationType.CENTRAL_AUTHORITY,
                 Set.of("id", "firstName", "lastName", "dateOfBirth",
-                        "address", "nationality", "email", "status"));
-        consumingOrg = new Organisation("TaxAuthority",
+                        "address", "nationality", "email", "status"),
+                        true);
+        consumingOrg = new Organisation("Bank",
                 OrganisationType.CONSUMING_ORGANISATION,
-                Set.of("id", "firstName", "lastName", "address", "nationality"));
-    }
+                Set.of("id", "firstName", "lastName", "dateOfBirth"),
+                false);
+        periodVerifyingOrg = new Organisation("TaxAuthority",
+            OrganisationType.CONSUMING_ORGANISATION,
+            Set.of("id", "firstName", "lastName", "address", "nationality"),
+            true);
+        }
 
     private Map<String, String> validAttributes() {
         Map<String, String> attrs = new HashMap<>();
@@ -352,17 +360,18 @@ class DigitalIdServiceTest {
 
         assertTrue(result.getAttributes().containsKey("firstName"));
         assertTrue(result.getAttributes().containsKey("lastName"));
-        assertTrue(result.getAttributes().containsKey("address"));
-        assertTrue(result.getAttributes().containsKey("nationality"));
-        assertFalse(result.getAttributes().containsKey("dateOfBirth"));
+        assertTrue(result.getAttributes().containsKey("dateOfBirth"));
+        assertFalse(result.getAttributes().containsKey("address"));
+        assertFalse(result.getAttributes().containsKey("nationality"));
         assertFalse(result.getAttributes().containsKey("email"));
     }
+
 
     @Test
     void verifyAlwaysIncludesStatus() {
         DigitalId created = service.create(centralAuthority, validAttributes());
         Organisation minimalOrg = new Organisation("MinimalOrg",
-                OrganisationType.CONSUMING_ORGANISATION, Set.of("id"));
+                OrganisationType.CONSUMING_ORGANISATION, Set.of("id"), false);
 
         VerificationResult result = service.verify(minimalOrg, created.getId());
 
@@ -401,7 +410,7 @@ class DigitalIdServiceTest {
                 .orElseThrow();
 
         assertEquals(created.getId(), verifyEntry.getDigitalIdId());
-        assertEquals("TaxAuthority", verifyEntry.getOrganisation());
+        assertEquals("Bank", verifyEntry.getOrganisation());
     }
 
     @Test
@@ -496,4 +505,70 @@ class DigitalIdServiceTest {
                         "email", "not-valid"));
         assertTrue(ex.getMessage().toLowerCase().contains("email"));
     }
+
+    @Test
+    void verifyContinuousActivityReturnsTrueForUntouchedActiveId() {
+        DigitalId created = service.create(centralAuthority, validAttributes());
+
+        PeriodVerificationResult result = service.verifyContinuousActivity(
+                periodVerifyingOrg, created.getId(),
+                LocalDate.now().minusDays(7), LocalDate.now());
+
+        assertTrue(result.isContinuouslyActive());
+        assertTrue(result.getStatusEventsInPeriod().isEmpty());
+    }
+
+    @Test
+    void verifyContinuousActivityReturnsFalseWhenSuspendedDuringPeriod() {
+        DigitalId created = service.create(centralAuthority, validAttributes());
+        service.changeStatus(centralAuthority, created.getId(),
+                IdStatus.SUSPENDED, "Test");
+
+        PeriodVerificationResult result = service.verifyContinuousActivity(
+                periodVerifyingOrg, created.getId(),
+                LocalDate.now().minusDays(1), LocalDate.now().plusDays(1));
+
+        assertFalse(result.isContinuouslyActive());
+        assertEquals(1, result.getStatusEventsInPeriod().size());
+    }
+
+    @Test
+    void verifyContinuousActivityRejectsOrgWithoutPermission() {
+        DigitalId created = service.create(centralAuthority, validAttributes());
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> service.verifyContinuousActivity(consumingOrg, created.getId(),
+                        LocalDate.now().minusDays(7), LocalDate.now()));
+        assertTrue(ex.getMessage().toLowerCase().contains("not authorised"));
+    }
+
+    @Test
+    void verifyContinuousActivityRejectsStartAfterEnd() {
+        DigitalId created = service.create(centralAuthority, validAttributes());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.verifyContinuousActivity(periodVerifyingOrg, created.getId(),
+                        LocalDate.of(2024, 6, 1), LocalDate.of(2024, 1, 1)));
+    }
+
+    @Test
+    void verifyContinuousActivityRejectsNonExistentId() {
+        assertThrows(IllegalArgumentException.class,
+                () -> service.verifyContinuousActivity(periodVerifyingOrg, "no-such-id",
+                        LocalDate.now().minusDays(7), LocalDate.now()));
+    }
+
+    @Test
+    void verifyContinuousActivityLogsAuditEvent() {
+        DigitalId created = service.create(centralAuthority, validAttributes());
+
+        service.verifyContinuousActivity(periodVerifyingOrg, created.getId(),
+                LocalDate.now().minusDays(7), LocalDate.now());
+
+        boolean found = auditRepo.loadAll().stream()
+                .anyMatch(e -> e.getEventType() == AuditEventType.VERIFICATION
+                        && e.getDetails().contains("Period verification"));
+        assertTrue(found);
+    }
+
 }

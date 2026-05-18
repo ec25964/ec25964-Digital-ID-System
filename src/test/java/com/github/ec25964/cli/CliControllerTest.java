@@ -44,7 +44,7 @@ class CliControllerTest {
         AuditRepository auditRepo = new AuditRepository(
                 tempDir.resolve("audit.csv"), parser, writer);
         auditService = new AuditService(auditRepo);
-        digitalIdService = new DigitalIdService(idRepo, auditService);
+        digitalIdService = new DigitalIdService(idRepo, auditService, auditRepo);
         registry = new OrganisationRegistry();
         capturedOut = new ByteArrayOutputStream();
     }

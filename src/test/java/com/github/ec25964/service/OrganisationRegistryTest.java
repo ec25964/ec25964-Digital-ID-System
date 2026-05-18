@@ -94,4 +94,19 @@ class OrganisationRegistryTest {
         assertNotEquals(tax.getAccessibleAttributes(), employer.getAccessibleAttributes());
         assertNotEquals(police.getAccessibleAttributes(), employer.getAccessibleAttributes());
     }
+
+    @Test
+    void onlySpecificOrgsCanVerifyAcrossPeriod() {
+        assertTrue(registry.findByName("CentralAuthority").get().canVerifyAcrossPeriod());
+        assertTrue(registry.findByName("TaxAuthority").get().canVerifyAcrossPeriod());
+
+        assertFalse(registry.findByName("DrivingLicenceAuthority").get().canVerifyAcrossPeriod());
+        assertFalse(registry.findByName("WelfareService").get().canVerifyAcrossPeriod());
+        assertFalse(registry.findByName("ImmigrationService").get().canVerifyAcrossPeriod());
+        assertFalse(registry.findByName("LocalAuthority").get().canVerifyAcrossPeriod());
+        assertFalse(registry.findByName("Bank").get().canVerifyAcrossPeriod());
+        assertFalse(registry.findByName("Employer").get().canVerifyAcrossPeriod());
+        assertFalse(registry.findByName("CommunityFoodBank").get().canVerifyAcrossPeriod());
+    }
+
 }
