@@ -18,6 +18,7 @@ import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Scanner;
 
 public class CliController {
@@ -144,6 +145,9 @@ public class CliController {
 
     private void handleUpdateAttribute(Organisation org) {
         String id = prompt("Digital ID: ");
+        if (preflightId(id, true).isEmpty()) {
+            return;
+        }
         String attribute = prompt("Attribute to update " +
                 "(firstName, lastName, address, nationality, email): ");
         String value = prompt("New value: ");
@@ -155,6 +159,9 @@ public class CliController {
 
     private void handleChangeStatus(Organisation org) {
         String id = prompt("Digital ID: ");
+        if (preflightId(id, true).isEmpty()) {
+            return;
+        }
         String statusInput = prompt("New status (ACTIVE, SUSPENDED, REVOKED): ");
 
         IdStatus newStatus;
@@ -206,6 +213,9 @@ public class CliController {
 
     private void handleStatusHistory(Organisation org) {
         String id = prompt("Digital ID: ");
+        if (preflightId(id, false).isEmpty()) {
+            return;
+        }
         LocalDate start = parseUiDate(prompt("Start date (dd/MM/yyyy): "));
         LocalDate end = parseUiDate(prompt("End date (dd/MM/yyyy): "));
 
@@ -222,6 +232,9 @@ public class CliController {
 
     private void handlePeriodVerify(Organisation org) {
         String id = prompt("Digital ID: ");
+        if (preflightId(id, false).isEmpty()) {
+            return;
+        }
         LocalDate start = parseUiDate(prompt("Start date (dd/MM/yyyy): "));
         LocalDate end = parseUiDate(prompt("End date (dd/MM/yyyy): "));
 
@@ -311,4 +324,20 @@ public class CliController {
             }
         }
     }
+
+    private Optional<DigitalId> preflightId(String id, boolean requireAlterable) {
+        Optional<DigitalId> existing = digitalIdService.findById(id);
+        if (existing.isEmpty()) {
+            out.println();
+            out.println("Error: Digital ID not found: " + id);
+            return Optional.empty();
+        }
+        if (requireAlterable && existing.get().getStatus() == IdStatus.REVOKED) {
+            out.println();
+            out.println("Error: Cannot perform this operation on a REVOKED Digital ID");
+            return Optional.empty();
+        }
+        return existing;
+    }
+
 }

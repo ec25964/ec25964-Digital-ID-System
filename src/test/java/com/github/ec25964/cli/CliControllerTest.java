@@ -190,4 +190,48 @@ class CliControllerTest {
         assertTrue(output.contains("Created Digital ID:"));
         assertEquals(1, idRepo.loadAll().size());
     }
+
+    @Test
+    void updateAttributeOnRevokedIdFailsFastBeforeFurtherPrompts() {
+        var ca = registry.findByName("CentralAuthority").orElseThrow();
+        Map<String, String> attrs = new HashMap<>();
+        attrs.put("firstName", "Test");
+        attrs.put("lastName", "User");
+        attrs.put("dateOfBirth", "1990-01-01");
+        attrs.put("address", "1 Test St");
+        attrs.put("nationality", "British");
+        attrs.put("email", "test@example.com");
+        DigitalId created = digitalIdService.create(ca, attrs);
+        digitalIdService.changeStatus(ca, created.getId(),
+                IdStatus.REVOKED, "Test revocation");
+
+
+        String input = String.join("\n",
+                "1",
+                "2",
+                created.getId(),
+                "0",
+                "");
+
+        String output = runCliWith(input);
+
+        assertTrue(output.toLowerCase().contains("revoked"));
+        assertFalse(output.contains("Attribute to update"));
+    }
+
+    @Test
+    void verifyOnNonExistentIdFailsFastWithErrorMessage() {
+        String input = String.join("\n",
+                "2",
+                "1",
+                "no-such-id",
+                "0",
+                "");
+
+        String output = runCliWith(input);
+
+        assertTrue(output.toLowerCase().contains("not found"));
+        assertFalse(output.contains("Verification of"));
+    }
+
 }
