@@ -1,5 +1,7 @@
 package com.github.ec25964.service;
 
+import com.github.ec25964.exception.AuthorisationException;
+import com.github.ec25964.exception.ValidationException;
 import com.github.ec25964.model.AuditEntry;
 import com.github.ec25964.model.AuditEventType;
 import com.github.ec25964.model.Organisation;
@@ -22,14 +24,14 @@ public class AuditService {
 
     public List<AuditEntry> getAllEntries(Organisation org) {
         if (!org.isCentralAuthority()) {
-            throw new IllegalArgumentException("Only the Central Authority can view audit logs");
+            throw new AuthorisationException("Only the Central Authority can view audit logs");
         }
         return auditRepository.loadAll();
     }
 
     public List<AuditEntry> getEntriesByDigitalId(Organisation org, String digitalIdId) {
         if (!org.isCentralAuthority()) {
-            throw new IllegalArgumentException("Only the Central Authority can view audit logs");
+            throw new AuthorisationException("Only the Central Authority can view audit logs");
         }
         return auditRepository.loadAll().stream()
             .filter(e -> e.getDigitalIdId().equals(digitalIdId))
@@ -39,10 +41,10 @@ public class AuditService {
     public List<AuditEntry> getStatusHistory(Organisation org, String digitalIdId,
                                               LocalDate startDate, LocalDate endDate) {
         if (!org.isCentralAuthority()) {
-            throw new IllegalArgumentException("Only the Central Authority can view audit logs");
+            throw new AuthorisationException("Only the Central Authority can view audit logs");
         }
         if (startDate.isAfter(endDate)) {
-            throw new IllegalArgumentException("Start date must not be after end date");
+            throw new ValidationException("Start date must not be after end date");
         }
         return auditRepository.loadAll().stream()
                 .filter(e -> e.getEventType() == AuditEventType.STATUS_CHANGE)

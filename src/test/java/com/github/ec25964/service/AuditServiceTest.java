@@ -1,5 +1,7 @@
 package com.github.ec25964.service;
 
+import com.github.ec25964.exception.AuthorisationException;
+import com.github.ec25964.exception.ValidationException;
 import com.github.ec25964.model.AuditEntry;
 import com.github.ec25964.model.AuditEventType;
 import com.github.ec25964.model.Organisation;
@@ -69,7 +71,7 @@ class AuditServiceTest {
 
     @Test
     void getAllEntriesRejectsConsumingOrganisation() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(AuthorisationException.class,
                 () -> auditService.getAllEntries(consumingOrg));
     }
 
@@ -90,7 +92,7 @@ class AuditServiceTest {
 
     @Test
     void getEntriesByDigitalIdRejectsConsumingOrganisation() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(AuthorisationException.class,
                 () -> auditService.getEntriesByDigitalId(consumingOrg, "id-1"));
     }
 
@@ -150,7 +152,7 @@ class AuditServiceTest {
 
     @Test
     void getStatusHistoryRejectsStartDateAfterEndDate() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(ValidationException.class,
                 () -> auditService.getStatusHistory(
                         centralAuthority, "id-1",
                         LocalDate.of(2024, 2, 1), LocalDate.of(2024, 1, 1)));
@@ -158,7 +160,7 @@ class AuditServiceTest {
 
     @Test
     void getStatusHistoryRejectsConsumingOrganisation() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(AuthorisationException.class,
                 () -> auditService.getStatusHistory(
                         consumingOrg, "id-1",
                         LocalDate.of(2024, 1, 1), LocalDate.of(2024, 1, 31)));

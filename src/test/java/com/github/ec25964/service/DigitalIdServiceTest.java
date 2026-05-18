@@ -1,5 +1,9 @@
 package com.github.ec25964.service;
 
+import com.github.ec25964.exception.AuthorisationException;
+import com.github.ec25964.exception.IllegalTransitionException;
+import com.github.ec25964.exception.NotFoundException;
+import com.github.ec25964.exception.ValidationException;
 import com.github.ec25964.model.AuditEntry;
 import com.github.ec25964.model.AuditEventType;
 import com.github.ec25964.model.DigitalId;
@@ -109,7 +113,7 @@ class DigitalIdServiceTest {
 
     @Test
     void createRejectsConsumingOrganisation() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(AuthorisationException.class,
                 () -> service.create(consumingOrg, validAttributes()));
     }
 
@@ -118,7 +122,7 @@ class DigitalIdServiceTest {
         Map<String, String> incomplete = new HashMap<>();
         incomplete.put("firstName", "John");
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        ValidationException ex = assertThrows(ValidationException.class,
                 () -> service.create(centralAuthority, incomplete));
 
         String message = ex.getMessage();
@@ -132,7 +136,7 @@ class DigitalIdServiceTest {
         Map<String, String> attrs = validAttributes();
         attrs.put("firstName", "   ");
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        ValidationException ex = assertThrows(ValidationException.class,
                 () -> service.create(centralAuthority, attrs));
         assertTrue(ex.getMessage().contains("firstName"));
     }
@@ -142,7 +146,7 @@ class DigitalIdServiceTest {
         Map<String, String> attrs = validAttributes();
         attrs.put("dateOfBirth", "not-a-date");
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        ValidationException ex = assertThrows(ValidationException.class,
                 () -> service.create(centralAuthority, attrs));
         assertTrue(ex.getMessage().toLowerCase().contains("dateofbirth"));
     }
@@ -179,7 +183,7 @@ class DigitalIdServiceTest {
     void updateAttributeRejectsConsumingOrganisation() {
         DigitalId created = service.create(centralAuthority, validAttributes());
 
-        assertThrows(IllegalArgumentException.class, () ->
+        assertThrows(AuthorisationException.class, () ->
                 service.updateAttribute(consumingOrg, created.getId(), "firstName", "Jane"));
     }
 
@@ -187,7 +191,7 @@ class DigitalIdServiceTest {
     void updateAttributeRejectsImmutableIdField() {
         DigitalId created = service.create(centralAuthority, validAttributes());
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+        IllegalTransitionException ex = assertThrows(IllegalTransitionException.class, () ->
                 service.updateAttribute(centralAuthority, created.getId(), "id", "new-id"));
         assertTrue(ex.getMessage().toLowerCase().contains("immutable"));
     }
@@ -196,7 +200,7 @@ class DigitalIdServiceTest {
     void updateAttributeRejectsImmutableDateOfBirthField() {
         DigitalId created = service.create(centralAuthority, validAttributes());
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+        IllegalTransitionException ex = assertThrows(IllegalTransitionException.class, () ->
                 service.updateAttribute(centralAuthority, created.getId(),
                         "dateOfBirth", "2000-01-01"));
         assertTrue(ex.getMessage().toLowerCase().contains("immutable"));
@@ -204,7 +208,7 @@ class DigitalIdServiceTest {
 
     @Test
     void updateAttributeRejectsNonExistentId() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+        NotFoundException ex = assertThrows(NotFoundException.class, () ->
                 service.updateAttribute(centralAuthority, "does-not-exist",
                         "firstName", "Jane"));
         assertTrue(ex.getMessage().toLowerCase().contains("not found"));
@@ -214,7 +218,7 @@ class DigitalIdServiceTest {
     void updateAttributeRejectsUnknownAttribute() {
         DigitalId created = service.create(centralAuthority, validAttributes());
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+        ValidationException ex = assertThrows(ValidationException.class, () ->
                 service.updateAttribute(centralAuthority, created.getId(),
                         "favouriteColour", "blue"));
         assertTrue(ex.getMessage().toLowerCase().contains("unknown"));
@@ -224,7 +228,7 @@ class DigitalIdServiceTest {
     void updateAttributeRejectsBlankValue() {
         DigitalId created = service.create(centralAuthority, validAttributes());
 
-        assertThrows(IllegalArgumentException.class, () ->
+        assertThrows(ValidationException.class, () ->
                 service.updateAttribute(centralAuthority, created.getId(),
                         "firstName", "   "));
     }
@@ -257,7 +261,7 @@ class DigitalIdServiceTest {
     void changeStatusToSuspendedWithoutReasonIsRejected() {
         DigitalId created = service.create(centralAuthority, validAttributes());
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+        ValidationException ex = assertThrows(ValidationException.class, () ->
                 service.changeStatus(centralAuthority, created.getId(),
                         IdStatus.SUSPENDED, null));
         assertTrue(ex.getMessage().toLowerCase().contains("reason"));
@@ -267,7 +271,7 @@ class DigitalIdServiceTest {
     void changeStatusToRevokedWithoutReasonIsRejected() {
         DigitalId created = service.create(centralAuthority, validAttributes());
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+        ValidationException ex = assertThrows(ValidationException.class, () ->
                 service.changeStatus(centralAuthority, created.getId(),
                         IdStatus.REVOKED, "   "));
         assertTrue(ex.getMessage().toLowerCase().contains("reason"));
@@ -279,7 +283,7 @@ class DigitalIdServiceTest {
         service.changeStatus(centralAuthority, created.getId(),
                 IdStatus.REVOKED, "Final action");
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+        IllegalTransitionException ex = assertThrows(IllegalTransitionException.class, () ->
                 service.changeStatus(centralAuthority, created.getId(),
                         IdStatus.ACTIVE, null));
         assertTrue(ex.getMessage().toLowerCase().contains("invalid"));
@@ -289,14 +293,14 @@ class DigitalIdServiceTest {
     void changeStatusRejectsConsumingOrganisation() {
         DigitalId created = service.create(centralAuthority, validAttributes());
 
-        assertThrows(IllegalArgumentException.class, () ->
+        assertThrows(AuthorisationException.class, () ->
                 service.changeStatus(consumingOrg, created.getId(),
                         IdStatus.SUSPENDED, "Test"));
     }
 
     @Test
     void changeStatusRejectsNonExistentId() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+        NotFoundException ex = assertThrows(NotFoundException.class, () ->
                 service.changeStatus(centralAuthority, "does-not-exist",
                         IdStatus.SUSPENDED, "Test"));
         assertTrue(ex.getMessage().toLowerCase().contains("not found"));
@@ -393,7 +397,7 @@ class DigitalIdServiceTest {
 
     @Test
     void verifyRejectsNonExistentId() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        NotFoundException ex = assertThrows(NotFoundException.class,
                 () -> service.verify(consumingOrg, "does-not-exist"));
         assertTrue(ex.getMessage().toLowerCase().contains("not found"));
     }
@@ -419,7 +423,7 @@ class DigitalIdServiceTest {
         service.changeStatus(centralAuthority, created.getId(),
                 IdStatus.REVOKED, "Confirmed fraud");
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        IllegalTransitionException ex = assertThrows(IllegalTransitionException.class,
                 () -> service.updateAttribute(centralAuthority, created.getId(),
                         "firstName", "Jane"));
         assertTrue(ex.getMessage().toLowerCase().contains("revoked"));
@@ -452,7 +456,7 @@ class DigitalIdServiceTest {
         Map<String, String> attrs = validAttributes();
         attrs.put("email", "no-at-sign.com");
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        ValidationException ex = assertThrows(ValidationException.class,
                 () -> service.create(centralAuthority, attrs));
         assertTrue(ex.getMessage().toLowerCase().contains("email"));
     }
@@ -462,7 +466,7 @@ class DigitalIdServiceTest {
         Map<String, String> attrs = validAttributes();
         attrs.put("email", "user@nodomain");
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        ValidationException ex = assertThrows(ValidationException.class,
                 () -> service.create(centralAuthority, attrs));
         assertTrue(ex.getMessage().toLowerCase().contains("email"));
     }
@@ -472,7 +476,7 @@ class DigitalIdServiceTest {
         Map<String, String> attrs = validAttributes();
         attrs.put("email", "user@host@example.com");
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        ValidationException ex = assertThrows(ValidationException.class,
                 () -> service.create(centralAuthority, attrs));
         assertTrue(ex.getMessage().toLowerCase().contains("email"));
     }
@@ -482,7 +486,7 @@ class DigitalIdServiceTest {
         Map<String, String> attrs = validAttributes();
         attrs.put("dateOfBirth", LocalDate.now().plusDays(1).toString());
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        ValidationException ex = assertThrows(ValidationException.class,
                 () -> service.create(centralAuthority, attrs));
         assertTrue(ex.getMessage().toLowerCase().contains("future"));
     }
@@ -500,7 +504,7 @@ class DigitalIdServiceTest {
     void updateAttributeRejectsInvalidEmail() {
         DigitalId created = service.create(centralAuthority, validAttributes());
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        ValidationException ex = assertThrows(ValidationException.class,
                 () -> service.updateAttribute(centralAuthority, created.getId(),
                         "email", "not-valid"));
         assertTrue(ex.getMessage().toLowerCase().contains("email"));
@@ -536,7 +540,7 @@ class DigitalIdServiceTest {
     void verifyContinuousActivityRejectsOrgWithoutPermission() {
         DigitalId created = service.create(centralAuthority, validAttributes());
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+        AuthorisationException ex = assertThrows(AuthorisationException.class,
                 () -> service.verifyContinuousActivity(consumingOrg, created.getId(),
                         LocalDate.now().minusDays(7), LocalDate.now()));
         assertTrue(ex.getMessage().toLowerCase().contains("not authorised"));
@@ -546,14 +550,14 @@ class DigitalIdServiceTest {
     void verifyContinuousActivityRejectsStartAfterEnd() {
         DigitalId created = service.create(centralAuthority, validAttributes());
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(ValidationException.class,
                 () -> service.verifyContinuousActivity(periodVerifyingOrg, created.getId(),
                         LocalDate.of(2024, 6, 1), LocalDate.of(2024, 1, 1)));
     }
 
     @Test
     void verifyContinuousActivityRejectsNonExistentId() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(NotFoundException.class,
                 () -> service.verifyContinuousActivity(periodVerifyingOrg, "no-such-id",
                         LocalDate.now().minusDays(7), LocalDate.now()));
     }

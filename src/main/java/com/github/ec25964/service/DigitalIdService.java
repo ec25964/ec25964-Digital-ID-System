@@ -1,13 +1,17 @@
 package com.github.ec25964.service;
 
+import com.github.ec25964.exception.AuthorisationException;
+import com.github.ec25964.exception.IllegalTransitionException;
+import com.github.ec25964.exception.NotFoundException;
+import com.github.ec25964.exception.ValidationException;
 import com.github.ec25964.model.AuditEntry;
 import com.github.ec25964.model.AuditEventType;
 import com.github.ec25964.model.DigitalId;
 import com.github.ec25964.model.IdStatus;
-import com.github.ec25964.model.PeriodVerificationResult;
-import com.github.ec25964.persistence.AuditRepository;
 import com.github.ec25964.model.Organisation;
+import com.github.ec25964.model.PeriodVerificationResult;
 import com.github.ec25964.model.VerificationResult;
+import com.github.ec25964.persistence.AuditRepository;
 import com.github.ec25964.persistence.DigitalIdRepository;
 
 import java.time.LocalDate;
@@ -37,7 +41,7 @@ public class DigitalIdService {
 
     public DigitalId create(Organisation org, Map<String, String> attributes) {
         if (!org.isCentralAuthority()) {
-            throw new IllegalArgumentException(
+            throw new AuthorisationException(
                     "Only the Central Authority can create Digital IDs");
         }
 
@@ -49,7 +53,7 @@ public class DigitalIdService {
             }
         }
         if (!missing.isEmpty()) {
-            throw new IllegalArgumentException(
+            throw new ValidationException(
                     "Missing required attributes: " + String.join(", ", missing));
         }
 
@@ -57,7 +61,7 @@ public class DigitalIdService {
         try {
             dateOfBirth = LocalDate.parse(attributes.get("dateOfBirth"));
         } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException(
+            throw new ValidationException(
                 "Invalid dateOfBirth: must be an ISO-format date (yyyy-MM-dd). " +
                 "If called from a UI layer, convert before calling.");
         }
@@ -90,21 +94,21 @@ public class DigitalIdService {
     public DigitalId updateAttribute(Organisation org, String digitalIdId,
                                      String attributeName, String newValue) {
         if (!org.isCentralAuthority()) {
-            throw new IllegalArgumentException(
+            throw new AuthorisationException(
                     "Only the Central Authority can update Digital IDs");
         }
 
         DigitalId digitalId = repository.findById(digitalIdId)
-                .orElseThrow(() -> new IllegalArgumentException(
+                .orElseThrow(() -> new NotFoundException(
                         "Digital ID not found: " + digitalIdId));
 
         if (digitalId.getStatus() == IdStatus.REVOKED) {
-            throw new IllegalArgumentException(
+            throw new IllegalTransitionException(
                     "Cannot update attributes of a REVOKED Digital ID");
         }
 
         if (newValue == null || newValue.isBlank()) {
-            throw new IllegalArgumentException(
+            throw new ValidationException(
                     "New value for " + attributeName + " must not be blank");
         }
 
@@ -151,9 +155,9 @@ public class DigitalIdService {
                 digitalId.setEmail(newValue);
                 yield old;
             }
-            case "id", "dateOfBirth" -> throw new IllegalArgumentException(
+            case "id", "dateOfBirth" -> throw new IllegalTransitionException(
                     "Attribute '" + attributeName + "' is immutable and cannot be updated");
-            default -> throw new IllegalArgumentException(
+            default -> throw new ValidationException(
                     "Unknown attribute: " + attributeName);
         };
     }
@@ -161,25 +165,25 @@ public class DigitalIdService {
     public DigitalId changeStatus(Organisation org, String digitalIdId,
                                   IdStatus newStatus, String reason) {
         if (!org.isCentralAuthority()) {
-            throw new IllegalArgumentException(
+            throw new AuthorisationException(
                     "Only the Central Authority can change Digital ID status");
         }
 
         DigitalId digitalId = repository.findById(digitalIdId)
-                .orElseThrow(() -> new IllegalArgumentException(
+                .orElseThrow(() -> new NotFoundException(
                         "Digital ID not found: " + digitalIdId));
 
         IdStatus oldStatus = digitalId.getStatus();
 
         if (!oldStatus.canTransitionTo(newStatus)) {
-            throw new IllegalArgumentException(
+            throw new IllegalTransitionException(
                     "Invalid status transition: " + oldStatus + " -> " + newStatus);
         }
 
         boolean reasonRequired = newStatus == IdStatus.SUSPENDED
                 || newStatus == IdStatus.REVOKED;
         if (reasonRequired && (reason == null || reason.isBlank())) {
-            throw new IllegalArgumentException(
+            throw new ValidationException(
                     "A reason is required when changing status to " + newStatus);
         }
 
@@ -204,7 +208,7 @@ public class DigitalIdService {
 
     public VerificationResult verify(Organisation org, String digitalIdId) {
         DigitalId digitalId = repository.findById(digitalIdId)
-                .orElseThrow(() -> new IllegalArgumentException(
+                .orElseThrow(() -> new NotFoundException(
                         "Digital ID not found: " + digitalIdId));
 
         Set<String> permitted = org.getAccessibleAttributes();
@@ -245,18 +249,18 @@ public class DigitalIdService {
             LocalDate startDate, LocalDate endDate) {
 
         if (!org.canVerifyAcrossPeriod()) {
-            throw new IllegalArgumentException(
+            throw new AuthorisationException(
                     "Organisation '" + org.getName()
                             + "' is not authorised to perform period verification");
         }
 
         if (startDate.isAfter(endDate)) {
-            throw new IllegalArgumentException(
+            throw new ValidationException(
                     "Start date must not be after end date");
         }
 
         DigitalId digitalId = repository.findById(digitalIdId)
-                .orElseThrow(() -> new IllegalArgumentException(
+                .orElseThrow(() -> new NotFoundException(
                         "Digital ID not found: " + digitalIdId));
 
         List<AuditEntry> all = auditRepository.loadAll();
@@ -319,23 +323,23 @@ public class DigitalIdService {
 
     private void validateEmailFormat(String email) {
         if (email == null) {
-            throw new IllegalArgumentException("Email must not be null");
+            throw new ValidationException("Email must not be null");
         }
         int at = email.indexOf('@');
         if (at <= 0 || at != email.lastIndexOf('@')) {
-            throw new IllegalArgumentException(
+            throw new ValidationException(
                     "Invalid email '" + email + "': must contain a single '@'");
         }
         String domain = email.substring(at + 1);
         if (!domain.contains(".") || domain.startsWith(".") || domain.endsWith(".")) {
-            throw new IllegalArgumentException(
+            throw new ValidationException(
                     "Invalid email '" + email + "': domain must contain a '.'");
         }
     }
 
     private void validateDateOfBirthNotInFuture(LocalDate dateOfBirth) {
         if (dateOfBirth.isAfter(LocalDate.now())) {
-            throw new IllegalArgumentException(
+            throw new ValidationException(
                     "Invalid dateOfBirth: must not be in the future");
         }
     }

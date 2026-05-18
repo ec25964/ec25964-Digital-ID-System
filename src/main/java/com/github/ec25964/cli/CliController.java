@@ -1,5 +1,6 @@
 package com.github.ec25964.cli;
 
+import com.github.ec25964.exception.DigitalIdException;
 import com.github.ec25964.model.AuditEntry;
 import com.github.ec25964.model.DigitalId;
 import com.github.ec25964.model.IdStatus;
@@ -92,7 +93,7 @@ public class CliController {
             } else {
                 handleConsumingOrganisationCommand(org, choice);
             }
-        } catch (IllegalArgumentException e) {
+        } catch (DigitalIdException e) {
             out.println("Error: " + e.getMessage());
         }
     }
