@@ -184,9 +184,6 @@ public class CliController {
 
     private void handleVerify(Organisation org) {
         String id = prompt("Digital ID: ");
-        if (preflightId(id, false).isEmpty()) {
-            return;
-        }
         VerificationResult result = digitalIdService.verify(org, id);
 
         out.println();
@@ -209,9 +206,6 @@ public class CliController {
 
     private void handleViewAuditLogsByDigitalId(Organisation org) {
         String id = prompt("Digital ID: ");
-        if (preflightId(id, false).isEmpty()) {
-            return;
-        }
         List<AuditEntry> entries = auditService.getEntriesByDigitalId(org, id);
         out.println();
         printAuditEntries(entries);
