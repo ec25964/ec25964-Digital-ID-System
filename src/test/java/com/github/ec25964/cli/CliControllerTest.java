@@ -7,7 +7,8 @@ import com.github.ec25964.persistence.CsvParser;
 import com.github.ec25964.persistence.CsvWriter;
 import com.github.ec25964.persistence.DigitalIdRepository;
 import com.github.ec25964.service.AuditService;
-import com.github.ec25964.service.DigitalIdService;
+import com.github.ec25964.service.IdentityManagementService;
+import com.github.ec25964.service.IdentityVerificationService;
 import com.github.ec25964.service.OrganisationRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,7 +32,8 @@ class CliControllerTest {
     Path tempDir;
 
     private DigitalIdRepository idRepo;
-    private DigitalIdService digitalIdService;
+    private IdentityManagementService managementService;
+    private IdentityVerificationService verificationService;
     private AuditService auditService;
     private OrganisationRegistry registry;
     private ByteArrayOutputStream capturedOut;
@@ -44,7 +46,8 @@ class CliControllerTest {
         AuditRepository auditRepo = new AuditRepository(
                 tempDir.resolve("audit.csv"), parser, writer);
         auditService = new AuditService(auditRepo);
-        digitalIdService = new DigitalIdService(idRepo, auditService, auditRepo);
+        managementService = new IdentityManagementService(idRepo, auditService);
+        verificationService = new IdentityVerificationService(idRepo, auditService, auditRepo);
         registry = new OrganisationRegistry();
         capturedOut = new ByteArrayOutputStream();
     }
@@ -55,7 +58,7 @@ class CliControllerTest {
         PrintStream out = new PrintStream(capturedOut, true, StandardCharsets.UTF_8);
 
         CliController controller = new CliController(
-                digitalIdService, auditService, registry, scanner, out);
+            managementService, verificationService, auditService, registry, scanner, out);
         controller.start();
         out.flush();
         return capturedOut.toString(StandardCharsets.UTF_8);
@@ -134,7 +137,7 @@ class CliControllerTest {
         attrs.put("address", "10 Demo Lane");
         attrs.put("nationality", "British");
         attrs.put("email", "alice@example.com");
-        DigitalId created = digitalIdService.create(
+        DigitalId created = managementService.create(
                 registry.findByName("CentralAuthority").orElseThrow(), attrs);
 
         String input = String.join("\n",
@@ -201,8 +204,8 @@ class CliControllerTest {
         attrs.put("address", "1 Test St");
         attrs.put("nationality", "British");
         attrs.put("email", "test@example.com");
-        DigitalId created = digitalIdService.create(ca, attrs);
-        digitalIdService.changeStatus(ca, created.getId(),
+        DigitalId created = managementService.create(ca, attrs);
+        managementService.changeStatus(ca, created.getId(),
                 IdStatus.REVOKED, "Test revocation");
 
 
