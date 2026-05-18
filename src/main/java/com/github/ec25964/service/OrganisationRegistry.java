@@ -27,16 +27,16 @@ public class OrganisationRegistry {
                     Set.of("id", "firstName", "lastName", "dateOfBirth", "address", "nationality")),
 
             new Organisation("ImmigrationService", OrganisationType.CONSUMING_ORGANISATION,
-                    Set.of("id", "firstName", "lastName", "dateOfBirth", "nationality", "email")),
+                    Set.of("id", "firstName", "lastName", "dateOfBirth", "address", "nationality", "email")),
 
             new Organisation("LocalAuthority", OrganisationType.CONSUMING_ORGANISATION,
-                    Set.of("id", "firstName", "lastName", "address")),
+                    Set.of("id", "firstName", "lastName", "dateOfBirth", "address")),
 
             new Organisation("Bank", OrganisationType.CONSUMING_ORGANISATION,
-                    Set.of("id", "firstName", "lastName", "dateOfBirth", "address", "email")),
+                    Set.of("id", "firstName", "lastName", "dateOfBirth")),
 
             new Organisation("Employer", OrganisationType.CONSUMING_ORGANISATION,
-                    Set.of("id", "firstName", "lastName")),
+                    Set.of("id", "firstName", "lastName", "dateOfBirth")),
                     
             new Organisation("CommunityFoodBank", OrganisationType.CONSUMING_ORGANISATION,
                     Set.of("id"))

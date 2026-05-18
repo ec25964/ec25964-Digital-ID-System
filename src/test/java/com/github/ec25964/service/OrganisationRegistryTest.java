@@ -65,13 +65,17 @@ class OrganisationRegistryTest {
     }
 
     @Test
-    void employerHasMinimalAttributes() {
+    void employerHasNameAndDateOfBirthOnly() {
         Organisation employer = registry.findByName("Employer").get();
         assertTrue(employer.getAccessibleAttributes().contains("id"));
         assertTrue(employer.getAccessibleAttributes().contains("firstName"));
         assertTrue(employer.getAccessibleAttributes().contains("lastName"));
-        assertEquals(3, employer.getAccessibleAttributes().size());
+        assertTrue(employer.getAccessibleAttributes().contains("dateOfBirth"));
+        assertFalse(employer.getAccessibleAttributes().contains("address"));
+        assertFalse(employer.getAccessibleAttributes().contains("email"));
+        assertEquals(4, employer.getAccessibleAttributes().size());
     }
+
 
     @Test
     void foodBankHasOnlyId() {
